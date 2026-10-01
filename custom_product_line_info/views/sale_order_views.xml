@@ -5,18 +5,27 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="after">
-                <field name="product_default_code" optional="show"/>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']" position="attributes">
+                <attribute name="context">{'default_list_price': price_unit, 'default_uom_id': product_uom_id, 'partner_id': parent.partner_id, 'display_default_code': False}</attribute>
             </xpath>
-            <xpath expr="//field[@name='order_line']/list/field[@name='name']" position="after">
+            <xpath expr="//field[@name='order_line']/list/field[@name='name']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']" position="after">
+                <field name="product_default_code" optional="show"/>
                 <field name="product_description" optional="show"/>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                 <field name="location_id" optional="show" domain="[]" options="{'no_create': True, 'no_open': True}"/>
                 <field name="unit_quantity" optional="show" readonly="1"/>
             </xpath>
+            <!-- Disc.% amount mode me readonly -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='discount']" position="attributes">
+                <attribute name="readonly">discount_mode == 'amount'</attribute>
+            </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='discount']" position="after">
-                <field name="fixed_amount" optional="show" readonly="1"/>
+                <field name="discount_mode" column_invisible="1"/>
+                <field name="fixed_amount" optional="show" readonly="discount_mode == 'percent'"/>
             </xpath>
         </field>
     </record>
