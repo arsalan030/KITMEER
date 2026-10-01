@@ -19,7 +19,6 @@
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_qty']" position="after">
                 <field name="location_id" optional="show" domain="[]" options="{'no_create': True, 'no_open': True}"/>
-                <field name="unit_quantity" optional="show" readonly="1"/>
             </xpath>
             <!-- Disc.% amount mode me readonly -->
             <xpath expr="//field[@name='order_line']/list/field[@name='discount']" position="attributes">
