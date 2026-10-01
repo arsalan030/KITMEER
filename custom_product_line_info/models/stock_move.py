@@ -31,6 +31,18 @@ class StockMove(models.Model):
         store=False,
         readonly=True,
     )
+    price_unit = fields.Float(
+        string='Unit Price',
+        digits='Product Price',
+        default=0.0,
+    )
+    total_amount = fields.Float(
+        string='Total Amount',
+        compute='_compute_total_amount',
+        digits='Product Price',
+        store=False,
+        readonly=True,
+    )
 
     @api.depends('product_id')
     def _compute_unit_quantity(self):
@@ -50,9 +62,13 @@ class StockMove(models.Model):
     @api.depends('product_id', 'price_unit')
     def _compute_product_amount(self):
         for move in self:
-            # PO se bani receipt me move ki price (PO wali), warna product ki cost
             move.product_amount = (
                 move.price_unit
                 or move.product_id.with_company(move.company_id).standard_price
                 or 0.0
             )
+
+    @api.depends('price_unit', 'product_uom_qty')
+    def _compute_total_amount(self):
+        for move in self:
+            move.total_amount = (move.price_unit or 0.0) * (move.product_uom_qty or 0.0)

@@ -6,27 +6,35 @@
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="arch" type="xml">
 
-            <!-- 1. Product_id ke context aur options update karein taake Internal Ref aur Description product cell me na aaye -->
+            <!-- 1. Product_id ke context aur options update karein -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_id']" position="attributes">
                 <attribute name="context">{'display_default_code': False}</attribute>
                 <attribute name="options">{'display_description': False}</attribute>
             </xpath>
 
-            <!-- 2. Description_picking column ko sirf Receipt (incoming) par hide karein, taake product cell me merge na ho -->
+            <!-- 2. Description_picking column ko sirf Receipt (incoming) par hide karein -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='description_picking']" position="attributes">
                 <attribute name="column_invisible">parent.picking_type_code == 'incoming'</attribute>
             </xpath>
 
-            <!-- 3. Product_id ke baad custom fields add karein (Internal Ref aur Description alag columns me) -->
+            <!-- 3. Product_id ke baad custom fields -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_id']" position="after">
                 <field name="product_default_code" optional="show"/>
                 <field name="product_description" optional="show"/>
             </xpath>
 
+            <!-- 4. Baaki fields -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_uom_qty']" position="after">
                 <field name="location_id" optional="show" domain="[]" options="{'no_create': True, 'no_open': True}"/>
                 <field name="unit_quantity" optional="show" readonly="1" column_invisible="parent.picking_type_code in ('incoming', 'outgoing')"/>
+
+                <!-- Sirf Receipt (incoming) par Product Amount -->
                 <field name="product_amount" optional="show" readonly="1" column_invisible="parent.picking_type_code != 'incoming'"/>
+
+                <!-- Sirf Delivery (outgoing) par Unit Price -->
+                <field name="price_unit" optional="show" readonly="1" column_invisible="parent.picking_type_code != 'outgoing'"/>
+
+                <!-- Total Amount column hata diya gaya hai -->
             </xpath>
 
         </field>

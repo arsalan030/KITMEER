@@ -9,9 +9,9 @@ class SaleOrderLine(models.Model):
         related='product_id.default_code',
         readonly=True,
     )
-    product_description = fields.Text(
+    product_description = fields.Char(
         string='Description',
-        related='name',
+        related='product_id.name',
         readonly=True,
     )
     location_id = fields.Many2one(
@@ -54,7 +54,6 @@ class SaleOrderLine(models.Model):
     @api.onchange('discount')
     def _onchange_discount_set_fixed(self):
         for line in self:
-            # Amount se convert hua discount ho to mode na badlein
             if line.discount_mode == 'amount':
                 continue
             line.discount_mode = 'percent' if line.discount else False
@@ -63,7 +62,6 @@ class SaleOrderLine(models.Model):
     @api.onchange('fixed_amount')
     def _onchange_fixed_amount_set_discount(self):
         for line in self:
-            # Percent mode me amount readonly hai
             if line.discount_mode == 'percent':
                 continue
             if line.fixed_amount:
@@ -79,7 +77,6 @@ class SaleOrderLine(models.Model):
         for line in self:
             price = line.price_unit or 0.0
             if line.discount_mode == 'amount':
-                # Amount wahi rahe, percent dobara calculate ho
                 line.discount = min((line.fixed_amount or 0.0) / price * 100.0, 100.0) if price else 0.0
             else:
                 line.fixed_amount = price * (line.discount or 0.0) / 100.0
