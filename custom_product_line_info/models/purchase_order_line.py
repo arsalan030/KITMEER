@@ -49,42 +49,42 @@ class PurchaseOrderLine(models.Model):
             except Exception:
                 line.unit_quantity = 0.0
 
-    @api.onchange('product_id', 'partner_id')
+    def _get_supplierinfo(self):
+        """Helper: extra_* fields se supplierinfo dhoondo, fallback standard."""
+        self.ensure_one()
+        if not self.product_id or not self.order_id.partner_id:
+            return self.env['product.supplierinfo']
+        partner_id = self.order_id.partner_id.id
+        tmpl_id = self.product_id.product_tmpl_id.id
+        info = self.env['product.supplierinfo'].search([
+            ('extra_partner_ids', 'in', [partner_id]),
+            ('extra_product_tmpl_ids', 'in', [tmpl_id]),
+        ], limit=1)
+        if not info:
+            info = self.env['product.supplierinfo'].search([
+                ('partner_id', '=', partner_id),
+                ('product_tmpl_id', '=', tmpl_id),
+            ], limit=1)
+        return info
+
+    @api.onchange('product_id', 'order_id')
     def _onchange_product_vendor_apply_supplier_discount(self):
-        """Product aur Vendor select hone par Multi Supplier Pricelist se discount apply karo."""
+        """Product aur Vendor select hone par Pricelist se price, quantity aur discount apply karo."""
         for line in self:
             if not line.product_id or not line.order_id.partner_id:
                 continue
-
-            # Pehle Multi Supplier Pricelist se try karo
-            multi_info = self.env['multi.supplierinfo'].search([
-                ('partner_ids', 'in', line.order_id.partner_id.id),
-                ('product_tmpl_ids', 'in', line.product_id.product_tmpl_id.id),
-            ], limit=1)
-
-            if multi_info:
-                if multi_info.discount_amount:
-                    line.fixed_amount = multi_info.discount_amount
-                    line.discount_mode = 'amount'
-                    if line.price_unit:
-                        line.discount = min(
-                            (multi_info.discount_amount / line.price_unit) * 100.0,
-                            100.0
-                        )
-                elif multi_info.discount:
-                    line.discount = multi_info.discount
-                    line.discount_mode = 'percent'
-                    if line.price_unit:
-                        line.fixed_amount = (line.price_unit or 0.0) * (multi_info.discount or 0.0) / 100.0
+            supplierinfo = line._get_supplierinfo()
+            if not supplierinfo:
                 continue
 
-            # Fallback: standard product.supplierinfo se
-            supplierinfo = self.env['product.supplierinfo'].search([
-                ('partner_id', '=', line.order_id.partner_id.id),
-                ('product_tmpl_id', '=', line.product_id.product_tmpl_id.id),
-            ], limit=1)
-
-            if supplierinfo and supplierinfo.discount_amount:
+            # Quantity
+            if supplierinfo.min_qty:
+                line.product_qty = supplierinfo.min_qty
+            # Price
+            if supplierinfo.price:
+                line.price_unit = supplierinfo.price
+            # Discount
+            if supplierinfo.discount_amount:
                 line.fixed_amount = supplierinfo.discount_amount
                 line.discount_mode = 'amount'
                 if line.price_unit:
@@ -92,11 +92,31 @@ class PurchaseOrderLine(models.Model):
                         (supplierinfo.discount_amount / line.price_unit) * 100.0,
                         100.0
                     )
+            elif supplierinfo.discount:
+                line.discount = supplierinfo.discount
+                line.discount_mode = 'percent'
+                if line.price_unit:
+                    line.fixed_amount = (line.price_unit or 0.0) * (supplierinfo.discount or 0.0) / 100.0
+
+    @api.depends('product_id', 'product_qty', 'product_uom_id', 'partner_id',
+                 'order_id.partner_id', 'order_id.currency_id', 'company_id',
+                 'date_order', 'order_id.date_order')
+    def _compute_price_unit_and_date_planned_and_name(self):
+        """Odoo 19 standard compute ko override karo taake extra_* fields se price aaye."""
+        extra_lines = self.filtered(
+            lambda l: l.product_id and l.order_id.partner_id
+        )
+        for line in extra_lines:
+            supplierinfo = line._get_supplierinfo()
+            if supplierinfo:
+                if supplierinfo.price:
+                    line.price_unit = supplierinfo.price
+
+        super()._compute_price_unit_and_date_planned_and_name()
 
     @api.onchange('discount')
     def _onchange_discount_set_fixed(self):
         for line in self:
-            # Amount se convert hua discount ho to mode na badlein
             if line.discount_mode == 'amount':
                 continue
             line.discount_mode = 'percent' if line.discount else False
@@ -105,7 +125,6 @@ class PurchaseOrderLine(models.Model):
     @api.onchange('fixed_amount')
     def _onchange_fixed_amount_set_discount(self):
         for line in self:
-            # Percent mode me amount readonly hai
             if line.discount_mode == 'percent':
                 continue
             if line.fixed_amount:
@@ -121,7 +140,6 @@ class PurchaseOrderLine(models.Model):
         for line in self:
             price = line.price_unit or 0.0
             if line.discount_mode == 'amount':
-                # Amount wahi rahe, percent dobara calculate ho
                 line.discount = min((line.fixed_amount or 0.0) / price * 100.0, 100.0) if price else 0.0
             else:
                 line.fixed_amount = price * (line.discount or 0.0) / 100.0
