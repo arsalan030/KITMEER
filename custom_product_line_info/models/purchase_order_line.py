@@ -49,6 +49,50 @@ class PurchaseOrderLine(models.Model):
             except Exception:
                 line.unit_quantity = 0.0
 
+    @api.onchange('product_id', 'partner_id')
+    def _onchange_product_vendor_apply_supplier_discount(self):
+        """Product aur Vendor select hone par Multi Supplier Pricelist se discount apply karo."""
+        for line in self:
+            if not line.product_id or not line.order_id.partner_id:
+                continue
+
+            # Pehle Multi Supplier Pricelist se try karo
+            multi_info = self.env['multi.supplierinfo'].search([
+                ('partner_ids', 'in', line.order_id.partner_id.id),
+                ('product_tmpl_ids', 'in', line.product_id.product_tmpl_id.id),
+            ], limit=1)
+
+            if multi_info:
+                if multi_info.discount_amount:
+                    line.fixed_amount = multi_info.discount_amount
+                    line.discount_mode = 'amount'
+                    if line.price_unit:
+                        line.discount = min(
+                            (multi_info.discount_amount / line.price_unit) * 100.0,
+                            100.0
+                        )
+                elif multi_info.discount:
+                    line.discount = multi_info.discount
+                    line.discount_mode = 'percent'
+                    if line.price_unit:
+                        line.fixed_amount = (line.price_unit or 0.0) * (multi_info.discount or 0.0) / 100.0
+                continue
+
+            # Fallback: standard product.supplierinfo se
+            supplierinfo = self.env['product.supplierinfo'].search([
+                ('partner_id', '=', line.order_id.partner_id.id),
+                ('product_tmpl_id', '=', line.product_id.product_tmpl_id.id),
+            ], limit=1)
+
+            if supplierinfo and supplierinfo.discount_amount:
+                line.fixed_amount = supplierinfo.discount_amount
+                line.discount_mode = 'amount'
+                if line.price_unit:
+                    line.discount = min(
+                        (supplierinfo.discount_amount / line.price_unit) * 100.0,
+                        100.0
+                    )
+
     @api.onchange('discount')
     def _onchange_discount_set_fixed(self):
         for line in self:

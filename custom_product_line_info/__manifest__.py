@@ -5,10 +5,13 @@
     'summary': 'Add Internal Reference and Description to all document lines',
     'depends': ['sale', 'purchase', 'stock', 'account'],
     'data': [
+        'security/ir.model.access.csv',
         'views/sale_order_views.xml',
         'views/purchase_order_views.xml',
         'views/stock_move_views.xml',
         'views/account_move_views.xml',
+        'views/product_supplierinfo_views.xml',
+        'views/multi_supplierinfo_views.xml',
     ],
     'installable': True,
     'application': False,

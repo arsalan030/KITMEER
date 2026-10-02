@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_supplierinfo_form_inherit_custom" model="ir.ui.view">
+        <field name="name">product.supplierinfo.form.inherit.custom</field>
+        <field name="model">product.supplierinfo</field>
+        <field name="inherit_id" ref="product.product_supplierinfo_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Asli Many2one chhupa do, uski jagah Vendors tags -->
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="extra_partner_ids" widget="many2many_tags"
+                       options="{'no_create': True}"
+                       context="{'res_partner_search_mode': 'supplier'}"
+                       required="1"/>
+            </xpath>
+            <!-- Asli Product Many2one chhupa do, uski jagah Products tags -->
+            <xpath expr="//field[@name='product_tmpl_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='product_tmpl_id']" position="after">
+                <field name="extra_product_tmpl_ids" widget="many2many_tags"
+                       options="{'no_create': True}"
+                       invisible="context.get('visible_product_tmpl_id', True)"
+                       required="1"/>
+            </xpath>
+            <!-- Discount %: amount mode me readonly, lekin save hoti rahe -->
+            <xpath expr="//field[@name='discount']" position="attributes">
+                <attribute name="readonly">discount_mode == 'amount'</attribute>
+                <attribute name="force_save">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='discount']" position="after">
+                <field name="discount_mode" invisible="1"/>
+                <!-- Discount Amount: percent mode me readonly, lekin save hoti rahe -->
+                <field name="discount_amount" readonly="discount_mode == 'percent'" force_save="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Purane records ke tags bharne ke liye (har upgrade par safe) -->
+    <function model="product.supplierinfo" name="_init_multi_tags"/>
+</odoo>
