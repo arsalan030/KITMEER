@@ -134,73 +134,30 @@ class ProductSupplierInfo(models.Model):
             templates = rec.extra_product_tmpl_ids | rec.product_tmpl_id
             group = rec._group_records()
 
-            seen = {(rec.partner_id.id, rec.product_tmpl_id.id)}
-            duplicates = Model.browse()
-            for other in group - rec:
-                key = (other.partner_id.id, other.product_tmpl_id.id)
-                if key in seen:
-                    duplicates |= other
-                else:
-                    seen.add(key)
-            if duplicates:
-                duplicates.unlink()
-                group -= duplicates
+            # ---- Sirf ek record rakho (primary), baaki delete karo ----
+            if len(group) > 1:
+                primary = rec
+                others = group - primary
+                if others:
+                    others.unlink()
+                group = primary
 
-            wanted = {(p.id, t.id) for p in partners for t in templates}
-            stale = (group - rec).filtered(
-                lambda r: (r.partner_id.id, r.product_tmpl_id.id) not in wanted
-            )
-            if stale:
-                stale.unlink()
-                group -= stale
-
-            existing = {(r.partner_id.id, r.product_tmpl_id.id) for r in group}
-            for partner in partners:
-                for tmpl in templates:
-                    if (partner.id, tmpl.id) in existing:
-                        continue
-                    base = [
-                        ('partner_id', '=', partner.id),
-                        ('product_tmpl_id', '=', tmpl.id),
-                        ('min_qty', '=', rec.min_qty),
-                    ]
-                    match = Model.search(base + [('multi_group', '=', False)], limit=1)
-                    if match:
-                        match.write({'multi_group': token})
-                        group |= match
-                        continue
-                    if Model.search_count(base + [('multi_group', '!=', False)]):
-                        continue
-                    defaults = {
-                        'partner_id': partner.id,
-                        'product_tmpl_id': tmpl.id,
-                        'multi_group': token,
-                    }
-                    if tmpl != rec.product_tmpl_id:
-                        defaults['product_id'] = False
-                        defaults['product_uom_id'] = tmpl.uom_id.id
-                    group |= rec.copy(defaults)
-
-            group = group.with_context(skip_combo=True)
-
+            # Primary record par hi saare tags set karo
             group.write({
                 'extra_partner_ids': [(6, 0, partners.ids)],
                 'extra_product_tmpl_ids': [(6, 0, templates.ids)],
             })
 
-            others = group - rec
-            if others:
-                others.write({
-                    'price': rec.price,
-                    'min_qty': rec.min_qty,
-                    'date_start': rec.date_start,
-                    'date_end': rec.date_end,
-                    'delay': rec.delay,
-                    'discount': rec.discount,
-                    'discount_amount': rec.discount_amount,
-                    'discount_mode': rec.discount_mode,
-                    'currency_id': rec.currency_id.id,
-                })
+            # Primary partner_id / product_tmpl_id ko pehla vendor/product rakho
+            vals = {}
+            if partners and group.partner_id not in partners:
+                vals['partner_id'] = partners[:1].id
+            if templates and group.product_tmpl_id not in templates:
+                vals['product_tmpl_id'] = templates[:1].id
+                vals['product_id'] = False
+                vals['product_uom_id'] = templates[:1].uom_id.id
+            if vals:
+                group.with_context(skip_combo=True).write(vals)
 
     @api.model
     def _init_multi_tags(self):
