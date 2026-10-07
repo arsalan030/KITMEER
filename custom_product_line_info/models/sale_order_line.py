@@ -34,7 +34,7 @@ class SaleOrderLine(models.Model):
         copy=True,
     )
 
-    @api.depends('product_id')
+    @api.depends('product_id', 'product_uom_qty', 'product_uom_id')
     def _compute_unit_quantity(self):
         for line in self:
             line.unit_quantity = 0.0
@@ -42,12 +42,19 @@ class SaleOrderLine(models.Model):
             if not product:
                 continue
             try:
-                if product.uom_id:
-                    line.unit_quantity = product.uom_id.factor or 0.0
-                elif product.packaging_ids:
-                    line.unit_quantity = product.packaging_ids[0].qty
-                elif product.product_tmpl_id.packaging_ids:
-                    line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
+                qty = line.product_uom_qty or 0.0
+                uom = line.product_uom_id
+                factor = 0.0
+                if uom:
+                    factor = uom.factor or 0.0
+                if factor:
+                    line.unit_quantity = qty * factor
+                else:
+                    # Fallback: packaging qty
+                    if product.packaging_ids:
+                        line.unit_quantity = product.packaging_ids[0].qty
+                    elif product.product_tmpl_id.packaging_ids:
+                        line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
             except Exception:
                 line.unit_quantity = 0.0
 
