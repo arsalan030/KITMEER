@@ -51,9 +51,9 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_multi_supplierinfo"
-              name="Multi Vendor Pricelists"
-              parent="purchase.menu_purchase_products"
-              action="action_multi_supplierinfo"
-              sequence="10"/>
+<!--    <menuitem id="menu_multi_supplierinfo"-->
+<!--              name="Multi Vendor Pricelists"-->
+<!--              parent="purchase.menu_purchase_products"-->
+<!--              action="action_multi_supplierinfo"-->
+<!--              sequence="10"/>-->
 </odoo>
