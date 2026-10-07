@@ -28,6 +28,11 @@
                 <field name="discount_mode" column_invisible="1"/>
                 <field name="fixed_amount" optional="show" readonly="qty_invoiced != 0 or discount_mode == 'percent'"/>
             </xpath>
+
+            <!-- Expected Arrival (date_planned) ko required=false karo -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='date_planned']" position="attributes">
+                <attribute name="required">0</attribute>
+            </xpath>
         </field>
     </record>
 </odoo>
