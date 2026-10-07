@@ -12,6 +12,8 @@
         'views/account_move_views.xml',
         'views/product_supplierinfo_views.xml',
         'views/multi_supplierinfo_views.xml',
+        'data/mail_template_overdue.xml',
+        'data/ir_cron_overdue.xml',
     ],
     'installable': True,
     'application': False,

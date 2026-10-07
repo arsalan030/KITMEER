@@ -4,5 +4,6 @@ from . import sales_validation
 from . import stock_move
 from . import sale_order_line
 from . import sale_order
-from . import product_supplierinfo  # <-- hata dein
+from . import product_supplierinfo
 from . import multi_supplierinfo
+from . import due_date_email_invoice

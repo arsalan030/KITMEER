@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <record id="email_template_overdue_invoice" model="mail.template">
+            <field name="name">Overdue Invoice Notification</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="subject">Payment Reminder: Invoice ${object.name} is Overdue</field>
+            <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+            <field name="email_to">${object.partner_id.email | safe}</field>
+            <field name="partner_to">${object.partner_id.id}</field>
+            <field name="body_html" type="html">
+                <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+                    <p>Dear ${object.partner_id.name},</p>
+                    <p>
+                        This is a friendly reminder that Invoice
+                        <strong>${object.name}</strong> dated
+                        <strong>${object.invoice_date}</strong> was due on
+                        <strong>${object.invoice_date_due}</strong> and is still unpaid.
+                    </p>
+                    <p>
+                        <strong>Outstanding Amount:</strong>
+                        ${object.amount_residual} ${object.currency_id.name}
+                    </p>
+                    <p>
+                        Kindly arrange the payment at the earliest to avoid any
+                        inconvenience.
+                    </p>
+                    <p>Thank you,<br/>${object.company_id.name}</p>
+                </div>
+            </field>
+        </record>
+
+    </data>
+</odoo>
