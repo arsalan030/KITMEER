@@ -7,7 +7,9 @@
         <field name="arch" type="xml">
             <!-- Product column se internal ref hatao -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="attributes">
-                <attribute name="context">{'partner_id': partner_id, 'quantity': product_qty, 'company_id': parent.company_id, 'display_default_code': False}</attribute>
+                <attribute name="context">{'partner_id': partner_id, 'quantity': product_qty, 'company_id':
+                    parent.company_id, 'display_default_code': False}
+                </attribute>
             </xpath>
             <!-- Standard name column hide karo taake product cell me description merge na ho -->
             <xpath expr="//field[@name='order_line']/list/field[@name='name']" position="attributes">

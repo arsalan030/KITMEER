@@ -34,7 +34,7 @@ class PurchaseOrderLine(models.Model):
         copy=True,
     )
 
-    @api.depends('product_id')
+    @api.depends('product_id', 'product_qty', 'product_uom_id')
     def _compute_unit_quantity(self):
         for line in self:
             line.unit_quantity = 0.0
@@ -42,10 +42,26 @@ class PurchaseOrderLine(models.Model):
             if not product:
                 continue
             try:
-                if product.packaging_ids:
-                    line.unit_quantity = product.packaging_ids[0].qty
-                elif product.product_tmpl_id.packaging_ids:
-                    line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
+                qty = line.product_qty or 0.0
+                uom = line.product_uom_id
+                factor = 0.0
+                if uom:
+                    # UoM ka factor (e.g. Carton = 50)
+                    factor = uom.factor or 0.0
+                    # Agar UoM reference UoM se chhoti hai to ratio ulta hota hai
+                    if uom.uom_type in ('smaller', 'bigger') and uom.factor:
+                        ref_factor = uom.category_id.uom_ids.filtered(
+                            lambda u: u.uom_type == 'reference'
+                        )[:1].factor or 1.0
+                        factor = (uom.factor / ref_factor)
+                if factor:
+                    line.unit_quantity = qty * factor
+                else:
+                    # Fallback: packaging qty
+                    if product.packaging_ids:
+                        line.unit_quantity = product.packaging_ids[0].qty
+                    elif product.product_tmpl_id.packaging_ids:
+                        line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
             except Exception:
                 line.unit_quantity = 0.0
 
