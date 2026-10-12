@@ -9,6 +9,11 @@ class SaleOrderLine(models.Model):
         related='product_id.default_code',
         readonly=True,
     )
+    product_ref_id = fields.Many2one(
+        'product.product',
+        string='Internal Reference',
+        domain=[('sale_ok', '=', True)],
+    )
     product_description = fields.Char(
         string='Description',
         related='product_id.name',
@@ -34,6 +39,17 @@ class SaleOrderLine(models.Model):
         copy=True,
     )
 
+    @api.onchange('product_ref_id')
+    def _onchange_product_ref_id(self):
+        for line in self:
+            if line.product_ref_id and line.product_id != line.product_ref_id:
+                line.product_id = line.product_ref_id
+
+    @api.onchange('product_id')
+    def _onchange_product_id_set_ref(self):
+        for line in self:
+            line.product_ref_id = line.product_id
+
     @api.depends('product_id', 'product_uom_qty', 'product_uom_id')
     def _compute_unit_quantity(self):
         for line in self:
@@ -44,13 +60,10 @@ class SaleOrderLine(models.Model):
             try:
                 qty = line.product_uom_qty or 0.0
                 uom = line.product_uom_id
-                factor = 0.0
-                if uom:
-                    factor = uom.factor or 0.0
+                factor = uom.factor or 0.0 if uom else 0.0
                 if factor:
                     line.unit_quantity = qty * factor
                 else:
-                    # Fallback: packaging qty
                     if product.packaging_ids:
                         line.unit_quantity = product.packaging_ids[0].qty
                     elif product.product_tmpl_id.packaging_ids:

@@ -6,8 +6,10 @@ class PurchaseOrderLine(models.Model):
 
     product_default_code = fields.Char(
         string='Internal Reference',
-        related='product_id.default_code',
-        readonly=True,
+        compute='_compute_product_default_code',
+        inverse='_inverse_product_default_code',
+        store=True,
+        readonly=False,
     )
     product_description = fields.Text(
         string='Description',
@@ -34,6 +36,32 @@ class PurchaseOrderLine(models.Model):
         copy=True,
     )
 
+    @api.depends('product_id')
+    def _compute_product_default_code(self):
+        for line in self:
+            line.product_default_code = line.product_id.default_code or ''
+
+    def _inverse_product_default_code(self):
+        for line in self:
+            if line.product_default_code:
+                product = self.env['product.product'].search([
+                    ('default_code', '=', line.product_default_code)
+                ], limit=1)
+                if product:
+                    line.product_id = product
+            else:
+                line.product_id = False
+
+    @api.onchange('product_default_code')
+    def _onchange_product_default_code(self):
+        for line in self:
+            if line.product_default_code:
+                product = self.env['product.product'].search([
+                    ('default_code', '=', line.product_default_code)
+                ], limit=1)
+                if product:
+                    line.product_id = product
+
     @api.depends('product_id', 'product_qty', 'product_uom_id')
     def _compute_unit_quantity(self):
         for line in self:
@@ -44,20 +72,10 @@ class PurchaseOrderLine(models.Model):
             try:
                 qty = line.product_qty or 0.0
                 uom = line.product_uom_id
-                factor = 0.0
-                if uom:
-                    # UoM ka factor (e.g. Carton = 50)
-                    factor = uom.factor or 0.0
-                    # Agar UoM reference UoM se chhoti hai to ratio ulta hota hai
-                    if uom.uom_type in ('smaller', 'bigger') and uom.factor:
-                        ref_factor = uom.category_id.uom_ids.filtered(
-                            lambda u: u.uom_type == 'reference'
-                        )[:1].factor or 1.0
-                        factor = (uom.factor / ref_factor)
+                factor = uom.factor or 0.0 if uom else 0.0
                 if factor:
                     line.unit_quantity = qty * factor
                 else:
-                    # Fallback: packaging qty
                     if product.packaging_ids:
                         line.unit_quantity = product.packaging_ids[0].qty
                     elif product.product_tmpl_id.packaging_ids:
@@ -66,7 +84,6 @@ class PurchaseOrderLine(models.Model):
                 line.unit_quantity = 0.0
 
     def _get_supplierinfo(self):
-        """Helper: extra_* fields se supplierinfo dhoondo, fallback standard."""
         self.ensure_one()
         if not self.product_id or not self.order_id.partner_id:
             return self.env['product.supplierinfo']
@@ -85,21 +102,16 @@ class PurchaseOrderLine(models.Model):
 
     @api.onchange('product_id', 'order_id')
     def _onchange_product_vendor_apply_supplier_discount(self):
-        """Product aur Vendor select hone par Pricelist se price, quantity aur discount apply karo."""
         for line in self:
             if not line.product_id or not line.order_id.partner_id:
                 continue
             supplierinfo = line._get_supplierinfo()
             if not supplierinfo:
                 continue
-
-            # Quantity
             if supplierinfo.min_qty:
                 line.product_qty = supplierinfo.min_qty
-            # Price
             if supplierinfo.price:
                 line.price_unit = supplierinfo.price
-            # Discount
             if supplierinfo.discount_amount:
                 line.fixed_amount = supplierinfo.discount_amount
                 line.discount_mode = 'amount'
@@ -118,7 +130,6 @@ class PurchaseOrderLine(models.Model):
                  'order_id.partner_id', 'order_id.currency_id', 'company_id',
                  'date_order', 'order_id.date_order')
     def _compute_price_unit_and_date_planned_and_name(self):
-        """Odoo 19 standard compute ko override karo taake extra_* fields se price aaye."""
         extra_lines = self.filtered(
             lambda l: l.product_id and l.order_id.partner_id
         )
@@ -127,7 +138,6 @@ class PurchaseOrderLine(models.Model):
             if supplierinfo:
                 if supplierinfo.price:
                     line.price_unit = supplierinfo.price
-
         super()._compute_price_unit_and_date_planned_and_name()
 
     @api.onchange('discount')
