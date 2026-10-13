@@ -9,6 +9,14 @@ class StockMove(models.Model):
         related='product_id.default_code',
         readonly=True,
     )
+    product_ref_id = fields.Many2one(
+        'product.product',
+        string='Internal Reference',
+        compute='_compute_product_ref_id',
+        inverse='_inverse_product_ref_id',
+        readonly=False,
+        store=False,
+    )
     product_description = fields.Text(
         string='Description',
         related='description_picking',
@@ -45,6 +53,27 @@ class StockMove(models.Model):
     )
 
     @api.depends('product_id')
+    def _compute_product_ref_id(self):
+        for move in self:
+            move.product_ref_id = move.product_id
+
+    def _inverse_product_ref_id(self):
+        for move in self:
+            if move.product_ref_id and move.product_id != move.product_ref_id:
+                move.product_id = move.product_ref_id
+
+    @api.onchange('product_ref_id')
+    def _onchange_product_ref_id(self):
+        for move in self:
+            if move.product_ref_id and move.product_id != move.product_ref_id:
+                move.product_id = move.product_ref_id
+
+    @api.depends('product_id', 'picking_type_id', 'description_picking_manual')
+    def _compute_description_picking(self):
+        # Description me product ka naam aaye, sirf code nahi
+        return super(StockMove, self.with_context(internal_ref_search=False))._compute_description_picking()
+
+    @api.depends('product_id', 'product_uom_qty', 'product_uom')
     def _compute_unit_quantity(self):
         for line in self:
             line.unit_quantity = 0.0
@@ -52,10 +81,16 @@ class StockMove(models.Model):
             if not product:
                 continue
             try:
-                if product.packaging_ids:
-                    line.unit_quantity = product.packaging_ids[0].qty
-                elif product.product_tmpl_id.packaging_ids:
-                    line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
+                qty = line.product_uom_qty or 0.0
+                uom = line.product_uom
+                factor = uom.factor or 0.0 if uom else 0.0
+                if factor:
+                    line.unit_quantity = qty * factor
+                else:
+                    if product.packaging_ids:
+                        line.unit_quantity = product.packaging_ids[0].qty
+                    elif product.product_tmpl_id.packaging_ids:
+                        line.unit_quantity = product.product_tmpl_id.packaging_ids[0].qty
             except Exception:
                 line.unit_quantity = 0.0
 

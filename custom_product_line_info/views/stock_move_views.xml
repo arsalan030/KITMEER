@@ -6,10 +6,11 @@
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="arch" type="xml">
 
-            <!-- 1. Product_id ke context aur options update karein -->
+            <!-- 1. Product_id ke context aur options update karein, aur column hide -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_id']" position="attributes">
                 <attribute name="context">{'display_default_code': False}</attribute>
                 <attribute name="options">{'display_description': False}</attribute>
+                <attribute name="column_invisible">1</attribute>
             </xpath>
 
             <!-- 2. Description_picking column ko sirf Receipt (incoming) par hide karein -->
@@ -17,16 +18,19 @@
                 <attribute name="column_invisible">parent.picking_type_code == 'incoming'</attribute>
             </xpath>
 
-            <!-- 3. Product_id ke baad custom fields -->
+            <!-- 3. Product_id ke baad Internal Ref (searchable) aur Description -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_id']" position="after">
-                <field name="product_default_code" optional="show"/>
+                <field name="product_ref_id" optional="show"
+                       context="{'internal_ref_search': True}"
+                       options="{'no_create': True, 'no_open': True}"
+                       readonly="parent.state in ('done', 'cancel')"/>
                 <field name="product_description" optional="show"/>
             </xpath>
 
             <!-- 4. Baaki fields -->
             <xpath expr="//field[@name='move_ids']/list/field[@name='product_uom_qty']" position="after">
                 <field name="location_id" optional="show" domain="[]" options="{'no_create': True, 'no_open': True}"/>
-                <field name="unit_quantity" optional="show" readonly="1" column_invisible="parent.picking_type_code in ('incoming', 'outgoing')"/>
+                <field name="unit_quantity" optional="show" readonly="1"/>
 
                 <!-- Sirf Receipt (incoming) par Product Amount -->
                 <field name="product_amount" optional="show" readonly="1" column_invisible="parent.picking_type_code != 'incoming'"/>

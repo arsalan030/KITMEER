@@ -12,7 +12,10 @@ class SaleOrderLine(models.Model):
     product_ref_id = fields.Many2one(
         'product.product',
         string='Internal Reference',
-        domain=[('sale_ok', '=', True)],
+        compute='_compute_product_ref_id',
+        inverse='_inverse_product_ref_id',
+        readonly=False,
+        store=False,
     )
     product_description = fields.Char(
         string='Description',
@@ -39,16 +42,26 @@ class SaleOrderLine(models.Model):
         copy=True,
     )
 
+    @api.depends('product_id')
+    def _compute_product_ref_id(self):
+        for line in self:
+            line.product_ref_id = line.product_id
+
+    def _inverse_product_ref_id(self):
+        for line in self:
+            if line.product_ref_id and line.product_id != line.product_ref_id:
+                line.product_id = line.product_ref_id
+
     @api.onchange('product_ref_id')
     def _onchange_product_ref_id(self):
         for line in self:
             if line.product_ref_id and line.product_id != line.product_ref_id:
                 line.product_id = line.product_ref_id
 
-    @api.onchange('product_id')
-    def _onchange_product_id_set_ref(self):
-        for line in self:
-            line.product_ref_id = line.product_id
+    @api.depends('product_id', 'linked_line_id', 'linked_line_ids')
+    def _compute_name(self):
+        # Description me product ka naam aaye, sirf code nahi
+        return super(SaleOrderLine, self.with_context(internal_ref_search=False))._compute_name()
 
     @api.depends('product_id', 'product_uom_qty', 'product_uom_id')
     def _compute_unit_quantity(self):

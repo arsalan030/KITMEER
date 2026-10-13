@@ -5,22 +5,29 @@
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
-            <!-- Product column se internal ref hatao -->
+            <!-- Product column hide -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="attributes">
                 <attribute name="context">{'partner_id': partner_id, 'quantity': product_qty, 'company_id':
                     parent.company_id, 'display_default_code': False}
                 </attribute>
+                <attribute name="column_invisible">1</attribute>
             </xpath>
             <!-- Standard name column hide karo taake product cell me description merge na ho -->
             <xpath expr="//field[@name='order_line']/list/field[@name='name']" position="attributes">
                 <attribute name="column_invisible">1</attribute>
             </xpath>
+            <!-- Internal Ref (searchable) aur Description -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="after">
-                <field name="product_default_code" optional="show"/>
+                <field name="product_ref_id" optional="show"
+                       context="{'internal_ref_search': True}"
+                       options="{'no_create': True, 'no_open': True}"
+                       readonly="parent.state in ('purchase', 'done', 'cancel')"/>
                 <field name="product_description" optional="show"/>
             </xpath>
+            <!-- Location aur Unit Quantity -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_qty']" position="after">
                 <field name="location_id" optional="show" domain="[]" options="{'no_create': True, 'no_open': True}"/>
+                <field name="unit_quantity" optional="show" readonly="1"/>
             </xpath>
             <!-- Disc.% amount mode me readonly -->
             <xpath expr="//field[@name='order_line']/list/field[@name='discount']" position="attributes">

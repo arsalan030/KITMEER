@@ -11,6 +11,14 @@ class PurchaseOrderLine(models.Model):
         store=True,
         readonly=False,
     )
+    product_ref_id = fields.Many2one(
+        'product.product',
+        string='Internal Reference',
+        compute='_compute_product_ref_id',
+        inverse='_inverse_product_ref_id',
+        readonly=False,
+        store=False,
+    )
     product_description = fields.Text(
         string='Description',
         related='name',
@@ -35,6 +43,22 @@ class PurchaseOrderLine(models.Model):
         string='Discount Mode',
         copy=True,
     )
+
+    @api.depends('product_id')
+    def _compute_product_ref_id(self):
+        for line in self:
+            line.product_ref_id = line.product_id
+
+    def _inverse_product_ref_id(self):
+        for line in self:
+            if line.product_ref_id and line.product_id != line.product_ref_id:
+                line.product_id = line.product_ref_id
+
+    @api.onchange('product_ref_id')
+    def _onchange_product_ref_id(self):
+        for line in self:
+            if line.product_ref_id and line.product_id != line.product_ref_id:
+                line.product_id = line.product_ref_id
 
     @api.depends('product_id')
     def _compute_product_default_code(self):
@@ -138,7 +162,10 @@ class PurchaseOrderLine(models.Model):
             if supplierinfo:
                 if supplierinfo.price:
                     line.price_unit = supplierinfo.price
-        super()._compute_price_unit_and_date_planned_and_name()
+        # Description me product ka naam aaye, sirf code nahi
+        super(PurchaseOrderLine, self.with_context(
+            internal_ref_search=False
+        ))._compute_price_unit_and_date_planned_and_name()
 
     @api.onchange('discount')
     def _onchange_discount_set_fixed(self):
